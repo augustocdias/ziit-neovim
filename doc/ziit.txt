@@ -1,0 +1,274 @@
+*ziit.txt*                        Ziit Time Tracking for Neovim
+
+ZIIT                                                    *ziit* *ziit.nvim*
+
+A Neovim plugin for tracking coding time and activity with Ziit.
+
+==============================================================================
+CONTENTS                                                      *ziit-contents*
+
+    1. Introduction ..................... |ziit-introduction|
+    2. Requirements ..................... |ziit-requirements|
+    3. Installation ..................... |ziit-installation|
+    4. Configuration .................... |ziit-configuration|
+    5. Commands ......................... |ziit-commands|
+    6. API .............................. |ziit-api|
+    7. Troubleshooting .................. |ziit-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION                                         *ziit-introduction*
+
+Ziit.nvim is a Neovim plugin that automatically tracks your coding activity
+by sending heartbeats to your Ziit server instance at regular intervals.
+It provides seamless integration with the Ziit time tracking ecosystem.
+
+Features:~
+- Timer-based heartbeat tracking (2 minutes default)
+- Offline queue management for unreliable connections
+- Status bar integration
+- Configurable tracking intervals and exclusions
+- Project and language detection
+- Git branch tracking
+
+==============================================================================
+2. REQUIREMENTS                                         *ziit-requirements*
+
+- Neovim 0.7+
+- plenary.nvim (https://github.com/nvim-lua/plenary.nvim)
+- A Ziit server instance and API key
+
+==============================================================================
+3. INSTALLATION                                         *ziit-installation*
+
+Using lazy.nvim:~
+>lua
+    {
+      'your-username/ziit-neovim',
+      dependencies = { 'nvim-lua/plenary.nvim' },
+      config = function()
+        require('ziit').setup({
+          api_key = 'your-api-key',
+          base_url = 'https://your-ziit-instance.com'  -- optional
+        })
+      end
+    }
+<
+
+Using packer.nvim:~
+>lua
+    use {
+      'your-username/ziit-neovim',
+      requires = { 'nvim-lua/plenary.nvim' },
+      config = function()
+        require('ziit').setup({
+          api_key = 'your-api-key'
+        })
+      end
+    }
+<
+
+==============================================================================
+4. CONFIGURATION                                       *ziit-configuration*
+
+Configuration can be provided in several ways (in order of priority):
+
+1. Lua configuration via setup() function
+2. Global variable `vim.g.ziit_config`
+3. Project-specific `.ziit.json` file
+4. User home directory `~/.ziit.json` file
+5. Environment variables (lowest priority)
+
+Configuration Options:~
+
+`base_url`          (string)  Ziit server URL (default: 'https://ziit.app')
+`api_key`           (string)  Your Ziit API key (required)
+`enabled`           (boolean) Enable/disable tracking (default: true)
+`debug`             (boolean) Enable debug logging (default: false)
+`heartbeat_interval` (number) Minimum seconds between heartbeats (default: 120)
+`offline_sync_interval` (number) Seconds between offline sync attempts (default: 300)
+`max_heartbeat_age` (number) Maximum age of queued heartbeats in seconds (default: 86400)
+`use_absolute_paths`    (boolean) Use absolute file paths (default: true)
+`exclude_patterns`  (table)  Patterns to exclude from tracking
+
+Example configuration:~
+>lua
+    require('ziit').setup({
+      api_key = 'your-api-key-here',
+      base_url = 'https://ziit.app',
+      enabled = true,
+      debug = false,
+      heartbeat_interval = 120,
+      exclude_patterns = {
+        '%.git/',
+        'node_modules/',
+        '%.tmp$',
+      }
+    })
+<
+
+JSON configuration file example (~/.ziit.json):~
+>json
+    {
+      "api_key": "your-api-key-here",
+      "base_url": "https://ziit.app",
+      "enabled": true,
+      "debug": false
+    }
+<
+
+Environment variables:~
+>bash
+    export ZIIT_API_KEY="your-api-key-here"
+    export ZIIT_BASE_URL="https://ziit.app"
+    export ZIIT_ENABLED="true"
+    export ZIIT_DEBUG="false"
+<
+
+==============================================================================
+5. COMMANDS                                                 *ziit-commands*
+
+:ZiitSetup [options]                                        *:ZiitSetup*
+    Initialize the plugin with optional configuration parameters.
+    
+    Examples:~
+    >
+        :ZiitSetup
+        :ZiitSetup api_key=your-key enabled=true debug=false
+<
+
+:ZiitEnable                                                *:ZiitEnable*
+    Enable Ziit tracking.
+
+:ZiitDisable                                               *:ZiitDisable*
+    Disable Ziit tracking.
+
+:checkhealth ziit                                          *:checkhealth-ziit*
+    Check plugin health, configuration, and connection status.
+    Comprehensive diagnostic information including dependencies,
+    configuration validation, and connection testing.
+
+:ZiitSync                                                  *:ZiitSync*
+    Manually sync queued heartbeats to the server.
+
+:ZiitTest                                                  *:ZiitTest*
+    Test connection to the Ziit server.
+
+:ZiitStats                                                 *:ZiitStats*
+    Fetch and display today's coding statistics.
+
+:ZiitClearQueue                                            *:ZiitClearQueue*
+    Clear the offline heartbeat queue.
+
+:ZiitDebugOn                                               *:ZiitDebugOn*
+    Enable debug mode for verbose logging.
+
+:ZiitDebugOff                                              *:ZiitDebugOff*
+    Disable debug mode.
+
+:ZiitDebugToggle                                           *:ZiitDebugToggle*
+    Toggle debug mode on/off.
+
+==============================================================================
+6. API                                                         *ziit-api*
+
+The plugin exposes a Lua API for advanced usage:
+
+require('ziit').setup(config)                          *ziit.setup()*
+    Initialize the plugin with the given configuration.
+
+    Parameters:~
+        {config} (table) Configuration options
+
+require('ziit').send_heartbeat()                       *ziit.send_heartbeat()*
+    Manually send a heartbeat.
+
+require('ziit').get_status()                           *ziit.get_status()*
+    Get current plugin status.
+    
+    Returns:~
+        {table} Status information containing:
+        - enabled: boolean
+        - queue_size: number  
+        - last_heartbeat: table|nil
+
+require('ziit').get_stats(callback)                    *ziit.get_stats()*
+    Get coding statistics from the Ziit server.
+    
+    Parameters:~
+        {callback} function(success, stats) - Called with results
+        
+    Example:~
+>lua
+        require('ziit').get_stats(function(success, stats)
+            if success then
+                print('Today: ' .. (stats.today or 'N/A'))
+            end
+        end)
+<
+
+require('ziit').test_connection(callback)              *ziit.test_connection()*
+    Test connection to the Ziit server.
+    
+    Parameters:~
+        {callback} function(success, message) - Called with results
+
+require('ziit').enable_debug()                        *ziit.enable_debug()*
+    Enable debug mode for verbose logging.
+
+require('ziit').disable_debug()                       *ziit.disable_debug()*
+    Disable debug mode.
+
+require('ziit').toggle_debug()                        *ziit.toggle_debug()*
+    Toggle debug mode on/off.
+    
+    Returns:~
+        {boolean} New debug state (true if enabled, false if disabled)
+
+Status Bar Integration:~
+
+For lualine users, the plugin automatically integrates with your statusline.
+For custom statuslines, use:
+>lua
+    require('ziit.status').get_status_text()
+    require('ziit.status').get_status_highlight()
+<
+
+==============================================================================
+7. TROUBLESHOOTING                                     *ziit-troubleshooting*
+
+Common Issues:~
+
+Plugin not tracking activity:~
+- Check that you have a valid API key configured
+- Ensure the plugin is enabled with `:ZiitStatus`
+- Test the connection with `:ZiitTest`
+- Enable debug mode to see detailed logging
+
+Heartbeats not reaching the server:~
+- Check your internet connection
+- Verify your Ziit server URL is correct
+- Heartbeats are queued offline and will sync when connection is restored
+- Use `:ZiitSync` to manually trigger sync
+
+High queue size:~
+- This indicates network issues or server problems
+- Heartbeats will be automatically synced when connection is restored
+- Old heartbeats (>24 hours by default) are automatically purged
+
+Debug Mode:~
+Enable debug mode for detailed logging:
+>lua
+    require('ziit').setup({ debug = true })
+<
+
+or temporarily:
+>
+    :lua require('ziit.config').set('debug', true)
+<
+
+Support:~
+For issues and feature requests, visit:
+https://github.com/your-username/ziit-neovim
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
